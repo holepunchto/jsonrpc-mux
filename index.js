@@ -1,5 +1,4 @@
 'use strict'
-const Protomux = require('protomux')
 const cenc = require('compact-encoding')
 
 module.exports = class Mjr {
@@ -46,17 +45,11 @@ module.exports = class Mjr {
     }
   }
 
-  constructor (stream) {
-    this.protomux = Protomux.from(stream)
+  constructor (protomux) {
+    this.protomux = protomux
   }
 
   channel (opts) { return new Channel(opts, this) }
-
-  * [Symbol.iterator] () { yield * this.protomux }
-
-  cork () { return this.protomux.cork() }
-
-  uncork () { return this.protomux.uncork() }
 }
 
 class Channel {
@@ -158,14 +151,6 @@ class Channel {
       if (throwAbort && err === signal.reason) return
       throw err
     }
-  }
-
-  cork () {
-    return this._muxchan.cork()
-  }
-
-  uncork () {
-    return this._muxchan.uncork()
   }
 }
 

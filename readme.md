@@ -6,11 +6,11 @@ http://www.jsonrpc.org/specification
 
 ## API
 
-### `new Mjr(secretStream) => muxer`
+### `new Mjr(protomux) => muxer`
 
 #### Arguments
 
-* secretStream - A [`@hyperswarm/secretstream`](https://github.com/holepunchto/hyperswarm-secret-stream) instance (framed stream with persistent messages).
+* protomux - A [`Protomux`](https://github.com/holepunchto/protomux) instance.
 
 ### `muxer.channel(opts) => channel`
 
@@ -29,14 +29,6 @@ The [`Protomux`](https://github.com/mafintosh/protomux) instance providing the p
 ### `for (const channel of muxer) {...}`
 
 Iterate over all created channels
-
-### `muxer.cork()`
-
-Cause all channels to begin batching
-
-### `muxer.uncork()`
-
-Cause all channels to release their and write batched messages
 
 ### `channel.open([handshake])`
 
@@ -103,17 +95,15 @@ Handler function for the method.
 * `signal` - An `AbortController` signal
 * `throwAbort` - `Boolean`, Default: `false`. Cause the iterable to throw with the abort signal reason, otherwise silently end the iterable on signal abort.
 
-### `channel.cork()`
-
-Cause the channel to begin batching
-
-### `channel.uncork()`
-
-Cause the channels to release and write batched messages.
-
 ### `channel.muxer`
 
 The `Mjr` instance from which the channel was created.
+
+## Test
+
+```sh
+npm test
+```
 
 ## Licence
 

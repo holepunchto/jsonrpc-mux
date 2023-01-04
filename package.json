@@ -10,13 +10,13 @@
   "author": "",
   "license": "BSD-3-Clause",
   "dependencies": {
-    "compact-encoding": "^2.11.0",
-    "protomux": "^3.4.0"
+    "compact-encoding": "^2.11.0"
   },
   "description": "",
   "devDependencies": {
     "@hyperswarm/secret-stream": "^6.1.1",
     "brittle": "^3.1.1",
+    "protomux": "^3.4.0",
     "standard": "^17.0.0"
   }
 }

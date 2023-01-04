@@ -1,11 +1,12 @@
 'use strict'
 const Mjr = require('.')
 const test = require('brittle')
+const Protomux = require('protomux')
 const SecretStream = require('@hyperswarm/secret-stream')
 
 test('request-response', async ({ alike }) => {
-  const a = new Mjr(new SecretStream(true))
-  const b = new Mjr(new SecretStream(false))
+  const a = new Mjr(new Protomux(new SecretStream(true)))
+  const b = new Mjr(new Protomux(new SecretStream(false)))
 
   const achannel = a.channel()
   const bchannel = b.channel()
@@ -31,8 +32,8 @@ test('request-response', async ({ alike }) => {
 })
 
 test('request-error', async ({ alike, exception }) => {
-  const a = new Mjr(new SecretStream(true))
-  const b = new Mjr(new SecretStream(false))
+  const a = new Mjr(new Protomux(new SecretStream(true)))
+  const b = new Mjr(new Protomux(new SecretStream(false)))
 
   const achannel = a.channel()
   const bchannel = b.channel()
