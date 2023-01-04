@@ -5,20 +5,17 @@ module.exports = class Mjr {
   codecs = {
     request: {
       preencode (state, { id, params, method }) {
-        cenc.string.preencode(state, '2.0')
         cenc.uint.preencode(state, id)
         cenc.string.preencode(state, method)
         cenc.json.preencode(state, params)
       },
       encode (state, { id, params, method }) {
-        cenc.string.encode(state, '2.0')
         cenc.uint.encode(state, id)
         cenc.string.encode(state, method)
         cenc.json.encode(state, params)
       },
       decode (state) {
         return {
-          jsonrpc: cenc.string.decode(state),
           id: cenc.uint.decode(state),
           method: cenc.string.decode(state),
           params: cenc.json.decode(state)
@@ -27,20 +24,17 @@ module.exports = class Mjr {
     },
     response: {
       preencode (state, { id, payload }) {
-        cenc.string.preencode(state, '2.0')
         cenc.uint.preencode(state, id)
         cenc.json.preencode(state, payload)
       },
       encode (state, { id, payload }) {
-        cenc.string.encode(state, '2.0')
         cenc.uint.encode(state, id)
         cenc.json.encode(state, payload)
       },
       decode (state) {
-        const jsonrpc = cenc.string.decode(state)
         const id = cenc.uint.decode(state)
         const payload = cenc.json.decode(state)
-        return { jsonrpc, id, ...payload }
+        return { id, ...payload }
       }
     }
   }
