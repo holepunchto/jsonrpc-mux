@@ -54,7 +54,6 @@ class Channel {
       ...opts,
       protocol: 'jsonrpc-2.0',
       onopen: () => this._onopen(),
-      onclose: () => this._onclose && this._onclose(),
       ondestroy: () => this._ondestroy && this._ondestroy()
     })
     this.muxer = muxer
@@ -73,18 +72,7 @@ class Channel {
     return this.opening.then(() => { this.closing = null })
   }
 
-  close () {
-    if (this.closing) return this.closing
-    this.closing = new Promise((resolve, reject) => {
-      this._onclose = () => {
-        resolve()
-        delete this._ondestroy
-      }
-      this._ondestroy = (err = new Error('Destroyed')) => reject(err)
-    })
-    this._muxchan.close()
-    return this.closing.then(() => { this.opening = null })
-  }
+  close () { this._muxchan.close() }
 
   async request (method, params, { signal } = {}) {
     await this.open()
