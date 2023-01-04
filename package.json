@@ -1,0 +1,21 @@
+{
+  "name": "mjr",
+  "version": "1.0.0",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "BSD-3-Clause",
+  "dependencies": {
+    "compact-encoding": "^2.11.0",
+    "protomux": "^3.4.0"
+  },
+  "description": "",
+  "devDependencies": {
+    "@hyperswarm/secret-stream": "^6.1.1",
+    "brittle": "^3.1.1",
+    "standard": "^17.0.0"
+  }
+}
