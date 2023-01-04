@@ -57,6 +57,8 @@ class Channel {
       ondestroy: () => this._ondestroy && this._ondestroy()
     })
     this.muxer = muxer
+    this.req = this._muxchan.addMessage({ encoding: this.muxer.codecs.request })
+    this.res = this._muxchan.addMessage({ encoding: this.muxer.codecs.response })
   }
 
   open (handshake) {
@@ -76,8 +78,6 @@ class Channel {
 
   async request (method, params, { signal } = {}) {
     await this.open()
-    const req = this._muxchan.addMessage({ encoding: this.muxer.codecs.request })
-    const res = this._muxchan.addMessage({ encoding: this.muxer.codecs.response })
     const id = this._muxchan._localId
 
     const messaging = new Promise((resolve, reject) => {
@@ -85,7 +85,7 @@ class Channel {
         if (signal.aborted) return reject(signal.reason)
         signal.addEventListener('aborted', () => reject(signal.reason), { once: true })
       }
-      res.onmessage = (msg) => {
+      this.res.onmessage = (msg) => {
         if (msg.id !== id) return
         if (msg.error) {
           const err = new RemoteError(`[${msg.error.code ? msg.error.code : 'E_UKNOWN'}] ${msg.error.message}`)
@@ -96,7 +96,7 @@ class Channel {
         resolve(msg.result)
       }
     })
-    req.send({
+    this.req.send({
       id,
       method,
       params
@@ -105,10 +105,8 @@ class Channel {
   }
 
   async * method (name, { signal, throwAbort = false } = {}) {
-    const req = this._muxchan.addMessage({ encoding: this.muxer.codecs.request })
-    const res = this._muxchan.addMessage({ encoding: this.muxer.codecs.response })
     const id = this._muxchan._localId
-    const reply = (payload) => res.send({
+    const reply = (payload) => this.res.send({
       id,
       payload: payload instanceof Error
         ? { error: { message: payload.message, code: payload.code } }
@@ -123,7 +121,7 @@ class Channel {
             if (signal.aborted) return reject(signal.reason)
             signal.addEventListener('aborted', () => reject(signal.reason), { once: true })
           }
-          req.onmessage = resolve
+          this.req.onmessage = resolve
         })
         if (message?.method !== name) continue
         if (message?.id !== id) continue
