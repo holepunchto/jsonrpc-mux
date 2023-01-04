@@ -11,7 +11,7 @@ test('request-response', async ({ alike }) => {
   const bchannel = b.channel()
 
   replicate(a, b)
-  
+
   await Promise.all([achannel.open(), bchannel.open()])
 
   const ac = new AbortController()
@@ -23,14 +23,12 @@ test('request-response', async ({ alike }) => {
   const yielded = await iterable.next()
   const { params, reply } = yielded.value
 
-  alike(params, expectedParams) 
+  alike(params, expectedParams)
 
-  reply({ a: 'response', echo: params})
-  
-  alike(await request, {a: 'response', echo: expectedParams})
+  reply({ a: 'response', echo: params })
 
+  alike(await request, { a: 'response', echo: expectedParams })
 })
-
 
 test('request-error', async ({ alike, exception }) => {
   const a = new Mjr(new SecretStream(true))
@@ -40,7 +38,7 @@ test('request-error', async ({ alike, exception }) => {
   const bchannel = b.channel()
 
   replicate(a, b)
-  
+
   await Promise.all([achannel.open(), bchannel.open()])
 
   const ac = new AbortController()
@@ -52,12 +50,11 @@ test('request-error', async ({ alike, exception }) => {
   const yielded = await iterable.next()
   const { params, reply } = yielded.value
 
-  alike(params, expectedParams) 
+  alike(params, expectedParams)
   const err = new Error('problem')
   err.code = 'E_TEST'
   reply(err)
   await exception(request, /\[E_TEST\] problem/)
-
 })
 
 function replicate (a, b) {

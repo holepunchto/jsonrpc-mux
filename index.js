@@ -41,18 +41,18 @@ module.exports = class Mjr {
         const jsonrpc = cenc.string.decode(state)
         const id = cenc.uint.decode(state)
         const payload = cenc.json.decode(state)
-        return { jsonrpc, id, ...payload } 
+        return { jsonrpc, id, ...payload }
       }
     }
   }
 
-  constructor(stream) {
+  constructor (stream) {
     this.protomux = Protomux.from(stream)
   }
 
   channel (opts) { return new Channel(opts, this) }
 
-  * [Symbol.iterator]() { yield * this.protomux }
+  * [Symbol.iterator] () { yield * this.protomux }
 
   cork () { return this.protomux.cork() }
 
@@ -68,34 +68,34 @@ class Channel {
       protocol: 'jsonrpc-2.0',
       onopen: () => this._onopen(),
       onclose: () => this._onclose && this._onclose(),
-      ondestroy: () => this._ondestroy && this._ondestroy(),
+      ondestroy: () => this._ondestroy && this._ondestroy()
     })
     this.muxer = muxer
   }
 
   open (handshake) {
     if (this.opening) return this.opening
-    this.opening = new Promise((resolve, reject) => { 
-      this._onopen = () => { 
+    this.opening = new Promise((resolve, reject) => {
+      this._onopen = () => {
         resolve()
-        delete this._ondestroy 
+        delete this._ondestroy
       }
       this._ondestroy = (err = new Error('Destroyed')) => reject(err)
     })
-    this._muxchan.open(handshake) 
+    this._muxchan.open(handshake)
     return this.opening.then(() => { this.closing = null })
   }
 
   close () {
     if (this.closing) return this.closing
-    this.closing = new Promise((resolve, reject) => { 
-      this._onclose = () => { 
+    this.closing = new Promise((resolve, reject) => {
+      this._onclose = () => {
         resolve()
-        delete this._ondestroy 
+        delete this._ondestroy
       }
       this._ondestroy = (err = new Error('Destroyed')) => reject(err)
     })
-    this._muxchan.close() 
+    this._muxchan.close()
     return this.closing.then(() => { this.opening = null })
   }
 
@@ -105,14 +105,14 @@ class Channel {
     const res = this._muxchan.addMessage({ encoding: this.muxer.codecs.response })
     const id = this._muxchan._localId
 
-    const messaging = new Promise((resolve, reject) => { 
+    const messaging = new Promise((resolve, reject) => {
       if (signal) {
         if (signal.aborted) return reject(signal.reason)
-        signal.addEventListener('aborted', () => reject(signal.reason), {once: true})
+        signal.addEventListener('aborted', () => reject(signal.reason), { once: true })
       }
       res.onmessage = (msg) => {
         if (msg.id !== id) return
-        if (msg.error) { 
+        if (msg.error) {
           const err = new RemoteError(`[${msg.error.code ? msg.error.code : 'E_UKNOWN'}] ${msg.error.message}`)
           err.remote = msg.error
           reject(err)
@@ -123,39 +123,39 @@ class Channel {
     })
     req.send({
       id,
-      method, 
+      method,
       params
     })
     return messaging
   }
 
-  async * method (name, { signal } = {}) {
+  async * method (name, { signal, throwAbort = false } = {}) {
     const req = this._muxchan.addMessage({ encoding: this.muxer.codecs.request })
     const res = this._muxchan.addMessage({ encoding: this.muxer.codecs.response })
     const id = this._muxchan._localId
-    const reply = (payload) => res.send({ 
-      id, 
-      payload: payload instanceof Error ? 
-        { error: { message: payload.message, code: payload.code } } :
-        { result: payload } 
+    const reply = (payload) => res.send({
+      id,
+      payload: payload instanceof Error
+        ? { error: { message: payload.message, code: payload.code } }
+        : { result: payload }
     })
     try {
       do {
         if (this.closed) break
         if (signal?.aborted) throw signal.reason
-        const message = await new Promise((resolve, reject) => { 
+        const message = await new Promise((resolve, reject) => {
           if (signal) {
             if (signal.aborted) return reject(signal.reason)
-            signal.addEventListener('aborted', () => reject(signal.reason), {once: true})
+            signal.addEventListener('aborted', () => reject(signal.reason), { once: true })
           }
-          req.onmessage = resolve 
+          req.onmessage = resolve
         })
         if (message?.method !== name) continue
         if (message?.id !== id) continue
         yield { params: message.params, reply }
       } while (true)
     } catch (err) {
-      if (!opts.throwAbort && err === signal.reason) return
+      if (throwAbort && err === signal.reason) return
       throw err
     }
   }
