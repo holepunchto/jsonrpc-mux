@@ -1,6 +1,6 @@
 'use strict'
 const cenc = require('compact-encoding')
-
+const { constructor: AbortSignal } = (new AbortController()).signal
 module.exports = class JSONRPCMux {
   codecs = {
     request: {
@@ -82,13 +82,18 @@ class Channel {
     return this._muxchan.close()
   }
 
-  async request (method, params, { signal } = {}) {
-    const tx = new Tx(signal)
+  async request (method, params, { timeout = 650, signal } = {}) {
+    const ac = timeout ? new AbortController() : null
+    const tx = timeout ? new Tx(ac.signal, signal) : new Tx(signal)
     const id = this._pending.alloc(tx)
     this._req.send({ id, method, params })
+    const tm = timeout && setTimeout(() => {
+      ac.abort(new Error('request timed-out out after ' + timeout + 'ms'))
+    }, timeout)
     try {
       return await tx
     } finally {
+      clearTimeout(tm)
       this._pending.free(id)
     }
   }
@@ -115,21 +120,30 @@ class Channel {
 
 class Tx extends Promise {
   static get [Symbol.species] () { return Promise }
-  constructor (signal = null) {
+  constructor (...signals) {
     let completers = null
     super((resolve, reject) => { completers = [resolve, reject] })
     const [resolve, reject] = completers
     this.reject = reject
     this.resolve = resolve
-    this.signal = signal
-    if (signal === null) return this
-    if (signal.aborted) {
-      this.reject(signal.reason)
-      return this
+    if (signals.length === 0) return this
+    const abortListener = (evt) => this.reject(evt.target.reason)
+    for (const signal of signals) {
+      if (signal instanceof AbortSignal === false) continue
+      if (signal.aborted) {
+        this.reject(signal.reason)
+        return this
+      }
+      signal.addEventListener('abort', abortListener, { once: true })
     }
-    const abortListener = () => this.reject(signal.reason)
-    this.resolve = (...args) => { try { resolve(...args) } finally { signal.removeEventListener('aborted', abortListener) } }
-    signal.addEventListener('aborted', abortListener, { once: true })
+
+    this.resolve = (...args) => {
+      for (const signal of signals) {
+        if (signal instanceof AbortSignal === false) continue
+        signal.removeEventListener('abort', abortListener)
+      }
+      return resolve(...args)
+    }
   }
 }
 

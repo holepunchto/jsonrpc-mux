@@ -24,6 +24,8 @@ The [`Protomux`](https://github.com/mafintosh/protomux) instance providing the p
 
 Make a JSONRPC 2.0 Request. Call an RPC method and wait for a response. The returned promise resolves or rejects depending on whether the JSON-RPC response object has a `result` or `error` property.
 
+If an invalid method is requested or the request stalls for any reason it will timeout after `opts.timeout` (default 650ms).
+
 #### Arguments
 
 ##### `method` `<String>`
@@ -37,10 +39,13 @@ Methods' named parameters.
 ##### `opts` `<Object>`
 
 * `signal` -  An `AbortController` signal. The `channel.request` method will throw on abort.
+* `timeout` -  Milliseconds. Self-abort after given timeout. Default `650`.
 
 ### `channel.notify(method, params})`
 
 Make a JSONRPC 2.0 Notification. Call an RPC method fire-and-forget style.
+
+If an invalid method is requested or the request stalls for any reason this will be silently ignored due to fire-and-forget behaviour.
 
 #### Arguments
 

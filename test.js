@@ -1,5 +1,5 @@
 'use strict'
-const Mjr = require('.')
+const JSONRPCMux = require('.')
 const test = require('brittle')
 const Protomux = require('protomux')
 const SecretStream = require('@hyperswarm/secret-stream')
@@ -7,8 +7,8 @@ const SecretStream = require('@hyperswarm/secret-stream')
 test('notify', async ({ plan, alike, is }) => {
   plan(2)
 
-  const a = new Mjr(new Protomux(new SecretStream(true)))
-  const b = new Mjr(new Protomux(new SecretStream(false)))
+  const a = new JSONRPCMux(new Protomux(new SecretStream(true)))
+  const b = new JSONRPCMux(new Protomux(new SecretStream(false)))
 
   const achannel = a.channel()
   const bchannel = b.channel()
@@ -25,8 +25,8 @@ test('notify', async ({ plan, alike, is }) => {
 })
 
 test('request-response', async ({ alike }) => {
-  const a = new Mjr(new Protomux(new SecretStream(true)))
-  const b = new Mjr(new Protomux(new SecretStream(false)))
+  const a = new JSONRPCMux(new Protomux(new SecretStream(true)))
+  const b = new JSONRPCMux(new Protomux(new SecretStream(false)))
 
   const achannel = a.channel()
   const bchannel = b.channel()
@@ -45,8 +45,8 @@ test('request-response', async ({ alike }) => {
 })
 
 test('request-error', async ({ alike, exception }) => {
-  const a = new Mjr(new Protomux(new SecretStream(true)))
-  const b = new Mjr(new Protomux(new SecretStream(false)))
+  const a = new JSONRPCMux(new Protomux(new SecretStream(true)))
+  const b = new JSONRPCMux(new Protomux(new SecretStream(false)))
 
   const achannel = a.channel()
   const bchannel = b.channel()
@@ -67,8 +67,8 @@ test('request-error', async ({ alike, exception }) => {
 })
 
 test('multiple methods, multiple requests', async ({ is }) => {
-  const a = new Mjr(new Protomux(new SecretStream(true)))
-  const b = new Mjr(new Protomux(new SecretStream(false)))
+  const a = new JSONRPCMux(new Protomux(new SecretStream(true)))
+  const b = new JSONRPCMux(new Protomux(new SecretStream(false)))
 
   const achannel = a.channel()
   const bchannel = b.channel()
@@ -90,6 +90,99 @@ test('multiple methods, multiple requests', async ({ is }) => {
   is(await request2, 4)
   is(await request3, 6)
   is(await request4, 256)
+})
+
+test('abort request', async ({ alike, exception }) => {
+  const a = new JSONRPCMux(new Protomux(new SecretStream(true)))
+  const b = new JSONRPCMux(new Protomux(new SecretStream(false)))
+
+  const achannel = a.channel()
+  const bchannel = b.channel()
+
+  replicate(a, b)
+
+  const expectedParams = { a: 1, b: 2 }
+  achannel.method('test', (params) => {
+    alike(params, expectedParams)
+  })
+  const ac = new AbortController()
+  const request = bchannel.request('test', expectedParams, ac)
+  setTimeout(() => {
+    ac.abort(new Error('abort test'))
+  }, 100)
+  await exception(request, /abort test/)
+})
+
+test('request invalid method', async ({ exception }) => {
+  const a = new JSONRPCMux(new Protomux(new SecretStream(true)))
+  const b = new JSONRPCMux(new Protomux(new SecretStream(false)))
+
+  const bchannel = b.channel()
+
+  replicate(a, b)
+
+  const expectedParams = { a: 1, b: 2 }
+
+  const request = bchannel.request('test', expectedParams)
+
+  await exception(request, /request timed-out/)
+})
+
+test('request timeout option', async ({ is, exception }) => {
+  const a = new JSONRPCMux(new Protomux(new SecretStream(true)))
+  const b = new JSONRPCMux(new Protomux(new SecretStream(false)))
+
+  const bchannel = b.channel()
+
+  replicate(a, b)
+
+  const expectedParams = { a: 1, b: 2 }
+
+  const request = bchannel.request('test', expectedParams, { timeout: 200 })
+  const before = Date.now()
+  await exception(request, /request timed-out/)
+  const after = Date.now()
+  is(Math.round((after - before) / 100) * 100, 200)
+})
+
+test('abort method', async ({ alike, exception }) => {
+  const a = new JSONRPCMux(new Protomux(new SecretStream(true)))
+  const b = new JSONRPCMux(new Protomux(new SecretStream(false)))
+
+  const achannel = a.channel()
+  const bchannel = b.channel()
+
+  replicate(a, b)
+
+  const expectedParams = { a: 1, b: 2 }
+  const registration = new AbortController()
+  achannel.method('test', (params, reply) => {
+    alike(params, expectedParams)
+    reply({ a: 'response', echo: params })
+  }, registration)
+
+  const request = bchannel.request('test', expectedParams)
+
+  alike(await request, { a: 'response', echo: expectedParams })
+
+  registration.abort() // method unlisten
+
+  await exception(bchannel.request('test', expectedParams), /request timed-out/)
+})
+
+test('notify invalid method', async ({ exception }) => {
+  const a = new JSONRPCMux(new Protomux(new SecretStream(true)))
+  const b = new JSONRPCMux(new Protomux(new SecretStream(false)))
+
+  const bchannel = b.channel()
+
+  replicate(a, b)
+
+  const expectedParams = { a: 1, b: 2 }
+
+  bchannel.notify('test', expectedParams)
+
+  // await exception(request, /request timed-out/)
 })
 
 function replicate (a, b) {
