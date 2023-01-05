@@ -13,20 +13,13 @@ test('request-response', async ({ alike }) => {
 
   replicate(a, b)
 
-  await Promise.all([achannel.open(), bchannel.open()])
-
-  const ac = new AbortController()
   const expectedParams = { a: 1, b: 2 }
-  const iterable = achannel.method('test', ac)
+  achannel.method('test', (params, reply) => {
+    alike(params, expectedParams)
+    reply({ a: 'response', echo: params })
+  })
 
   const request = bchannel.request('test', expectedParams)
-
-  const yielded = await iterable.next()
-  const { params, reply } = yielded.value
-
-  alike(params, expectedParams)
-
-  reply({ a: 'response', echo: params })
 
   alike(await request, { a: 'response', echo: expectedParams })
 })
@@ -40,22 +33,43 @@ test('request-error', async ({ alike, exception }) => {
 
   replicate(a, b)
 
-  await Promise.all([achannel.open(), bchannel.open()])
-
-  const ac = new AbortController()
   const expectedParams = { a: 1, b: 2 }
-  const iterable = achannel.method('test', ac)
+  achannel.method('test', (params, reply) => {
+    alike(params, expectedParams)
+    const err = new Error('problem')
+    err.code = 'E_TEST'
+    reply(err)
+  })
 
   const request = bchannel.request('test', expectedParams)
 
-  const yielded = await iterable.next()
-  const { params, reply } = yielded.value
-
-  alike(params, expectedParams)
-  const err = new Error('problem')
-  err.code = 'E_TEST'
-  reply(err)
   await exception(request, /\[E_TEST\] problem/)
+})
+
+test('multiple methods, multiple requests', async ({ is }) => {
+  const a = new Mjr(new Protomux(new SecretStream(true)))
+  const b = new Mjr(new Protomux(new SecretStream(false)))
+
+  const achannel = a.channel()
+  const bchannel = b.channel()
+
+  achannel.name = 'a'
+  bchannel.name = 'b'
+
+  replicate(a, b)
+
+  achannel.method('test', (params, reply) => reply(params.n + params.n))
+  achannel.method('test2', (params, reply) => reply(params.n ** params.n))
+
+  const request = bchannel.request('test', { n: 1 })
+  const request2 = bchannel.request('test2', { n: 2 })
+  const request3 = bchannel.request('test', { n: 3 })
+  const request4 = bchannel.request('test2', { n: 4 })
+
+  is(await request, 2)
+  is(await request2, 4)
+  is(await request3, 6)
+  is(await request4, 256)
 })
 
 function replicate (a, b) {

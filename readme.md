@@ -1,48 +1,24 @@
-# mjr
+# jsonrpc-mux
 
-> mux json-rpc
+> multiplex jsonrpc
 
 http://www.jsonrpc.org/specification
 
 ## API
 
-### `new Mjr(protomux) => muxer`
+### `new JSONRPCMux(protomux) => muxer`
 
 #### Arguments
 
 * protomux - A [`Protomux`](https://github.com/holepunchto/protomux) instance.
 
-### `muxer.channel(opts) => channel`
+### `muxer.channel() => channel`
 
 Create a new JSON-RPC channel.
 
 ### `muxer.protomux`
 
 The [`Protomux`](https://github.com/mafintosh/protomux) instance providing the protocol multiplexing layer.
-
-#### Arguments
-
-##### `opts` `<Object>`
-
-* `id` - Buffer. Optional.
-
-### `for (const channel of muxer) {...}`
-
-Iterate over all created channels
-
-### `channel.open([handshake])`
-
-Open the channel.
-
-#### Arguments
-
-##### `handshake` `<any>`
-
-Optional handshake value
-
-### `channel.close()`
-
-Close the channel
 
 ### `channel.request(method, params, opts}) -> Promise`
 
@@ -62,23 +38,9 @@ Methods' named parameters.
 
 * `signal` -  An `AbortController` signal. The `channel.request` method will throw on abort.
 
-### `for await (const { params, reply } of channel.method(name, [, opts])) { ... }`
+### `channel.method(name, responder, [, opts]))`
 
-Register a method and begin listening for messages. 
-
-The `channel.method` function returns an async iterable which proceeds each time a message is received.
-
-#### Yield Object
-
-##### `params` `<Object>`
-
-Incoming params from a remote caller
-
-##### `reply(msgOrError <any>)` 
-
-Call to send a response back.
-
-If the supplied argument is an `instanceof Error` a JSONRPC error response (`{ jsonrpc: '2.0', id: 999, error: { message, code } }`) will be generated otherwise the supplied argument forms the result response (`{ jsonrpc: '2.0', id: 999, result: msg }`).
+Register a method and begin listening for messages. The `responder` function is called with `params` and `reply` arguments.
 
 #### Arguments
 
@@ -86,9 +48,14 @@ If the supplied argument is an `instanceof Error` a JSONRPC error response (`{ j
 
 The name of the method
 
-##### `responder` `<AsyncFunction|Function>`
+##### `responder` `async (params, reply) => { ... }` 
 
 Handler function for the method.
+
+Call `reply` to send a response back.
+
+If the argument supplied to `reply` is an `instanceof Error` a JSONRPC error response (`{ jsonrpc: '2.0', id: 999, error: { message, code } }`) will be generated otherwise the supplied argument forms the result response (`{ jsonrpc: '2.0', id: 999, result: msg }`).
+
 
 ##### `options` `<Object>`
 
@@ -97,7 +64,7 @@ Handler function for the method.
 
 ### `channel.muxer`
 
-The `Mjr` instance from which the channel was created.
+The `JSONRPCMux` instance from which the channel was created.
 
 ## Test
 

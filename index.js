@@ -1,21 +1,24 @@
 'use strict'
 const cenc = require('compact-encoding')
 
-module.exports = class Mjr {
+module.exports = class JSONRPCMux {
   codecs = {
     request: {
-      preencode (state, { id, params, method }) {
+      preencode (state, { rid, id, params, method }) {
+        cenc.uint.preencode(state, rid)
         cenc.uint.preencode(state, id)
         cenc.string.preencode(state, method)
         cenc.json.preencode(state, params)
       },
-      encode (state, { id, params, method }) {
+      encode (state, { rid, id, params, method }) {
+        cenc.uint.encode(state, rid)
         cenc.uint.encode(state, id)
         cenc.string.encode(state, method)
         cenc.json.encode(state, params)
       },
       decode (state) {
         return {
+          rid: cenc.uint.decode(state),
           id: cenc.uint.decode(state),
           method: cenc.string.decode(state),
           params: cenc.json.decode(state)
@@ -43,98 +46,120 @@ module.exports = class Mjr {
     this.protomux = protomux
   }
 
-  channel (opts) { return new Channel(opts, this) }
+  channel () { return new Channel(this) }
 }
 
 class Channel {
-  opening = null
-  closing = null
-  constructor (opts = {}, muxer) {
-    this._muxchan = muxer.protomux.createChannel({
-      ...opts,
-      protocol: 'jsonrpc-2.0',
-      onopen: () => this._onopen(),
-      ondestroy: () => this._ondestroy && this._ondestroy()
-    })
+  constructor (muxer) {
     this.muxer = muxer
-    this.req = this._muxchan.addMessage({ encoding: this.muxer.codecs.request })
-    this.res = this._muxchan.addMessage({ encoding: this.muxer.codecs.response })
-  }
-
-  open (handshake) {
-    if (this.opening) return this.opening
-    this.opening = new Promise((resolve, reject) => {
-      this._onopen = () => {
-        resolve()
-        delete this._ondestroy
-      }
-      this._ondestroy = (err = new Error('Destroyed')) => reject(err)
+    this._muxchan = muxer.protomux.createChannel({
+      protocol: 'jsonrpc-2.0',
+      onclose: () => this.destroy()
     })
-    this._muxchan.open(handshake)
-    return this.opening.then(() => { this.closing = null })
+    this._pending = new Freelist()
+    this._handlers = {}
+    this._req = this._muxchan.addMessage({
+      encoding: this.muxer.codecs.request,
+      onmessage: (msg) => {
+        const handler = this._handlers[msg.method]
+        if (handler) handler(msg)
+      }
+    })
+    this._res = this._muxchan.addMessage({
+      encoding: this.muxer.codecs.response,
+      onmessage: (msg) => {
+        const tx = this._pending.from(msg.id)
+        if (tx === null) return
+        if (msg.error) return tx.reject(new RemoteError(msg.error))
+        tx.resolve(msg.result)
+      }
+    })
+    this._muxchan.open()
   }
 
-  close () { this._muxchan.close() }
+  destroy () {
+    this._pending.clear()
+    return this._muxchan.close()
+  }
 
   async request (method, params, { signal } = {}) {
-    await this.open()
-    const id = this._muxchan._localId
-
-    const messaging = new Promise((resolve, reject) => {
-      if (signal) {
-        if (signal.aborted) return reject(signal.reason)
-        signal.addEventListener('aborted', () => reject(signal.reason), { once: true })
-      }
-      this.res.onmessage = (msg) => {
-        if (msg.id !== id) return
-        if (msg.error) {
-          const err = new RemoteError(`[${msg.error.code ? msg.error.code : 'E_UKNOWN'}] ${msg.error.message}`)
-          err.remote = msg.error
-          reject(err)
-          return
-        }
-        resolve(msg.result)
-      }
-    })
-    this.req.send({
-      id,
-      method,
-      params
-    })
-    return messaging
+    const tx = new Tx(signal)
+    const id = this._pending.alloc(tx)
+    this._req.send({ id, method, params })
+    try {
+      return await tx
+    } finally {
+      this._pending.free(id)
+    }
   }
 
-  async * method (name, { signal, throwAbort = false } = {}) {
-    const id = this._muxchan._localId
-    const reply = (payload) => this.res.send({
-      id,
-      payload: payload instanceof Error
-        ? { error: { message: payload.message, code: payload.code } }
-        : { result: payload }
-    })
-    try {
-      do {
-        if (this.closed) break
-        if (signal?.aborted) throw signal.reason
-        const message = await new Promise((resolve, reject) => {
-          if (signal) {
-            if (signal.aborted) return reject(signal.reason)
-            signal.addEventListener('aborted', () => reject(signal.reason), { once: true })
-          }
-          this.req.onmessage = resolve
-        })
-        if (message?.method !== name) continue
-        if (message?.id !== id) continue
-        yield { params: message.params, reply }
-      } while (true)
-    } catch (err) {
-      if (throwAbort && err === signal.reason) return
-      throw err
+  method (name, responder, { signal } = {}) {
+    this._handlers[name] = ({ id, params }) => {
+      const reply = (payload) => this._res.send({
+        id,
+        payload: payload instanceof Error
+          ? { error: { message: payload.message, code: payload.code } }
+          : { result: payload }
+      })
+      responder(params, reply)
     }
+    if (signal) signal.addEventListener('abort', () => { this._handlers[name] = null })
+  }
+}
+
+class Tx extends Promise {
+  static get [Symbol.species] () { return Promise }
+  constructor (signal = null) {
+    let completers = null
+    super((resolve, reject) => { completers = [resolve, reject] })
+    const [resolve, reject] = completers
+    this.reject = reject
+    this.resolve = resolve
+    this.signal = signal
+    if (signal === null) return this
+    if (signal.aborted) {
+      this.reject(signal.reason)
+      return this
+    }
+    const abortListener = () => this.reject(signal.reason)
+    this.resolve = (...args) => { try { resolve(...args) } finally { signal.removeEventListener('aborted', abortListener) } }
+    signal.addEventListener('aborted', abortListener, { once: true })
+  }
+}
+
+class Freelist {
+  alloced = []
+  freed = []
+  alloc (item) {
+    const id = this.freed.length === 0 ? this.alloced.push(null) - 1 : this.freed.pop()
+    this.alloced[id] = item
+    return id
+  }
+
+  free (id) {
+    this.freed.push(id)
+    this.alloced[id] = null
+  }
+
+  from (id) {
+    return id < this.alloced.length ? this.alloced[id] : null
+  }
+
+  emptied () {
+    return this.freed.length === this.alloced.length
+  }
+
+  clear () {
+    this.alloced.length = 0
+    this.freed.length = 0
   }
 }
 
 class RemoteError extends Error {
-  code = 'E_MJR_REMOTE'
+  code = 'E_MUX_REMOTE'
   remote = null
+  constructor (error) {
+    super(`[${error.code ? error.code : 'E_UKNOWN'}] ${error.message}`)
+    this.remote = error
+  }
 }
