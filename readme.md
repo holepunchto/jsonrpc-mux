@@ -20,9 +20,9 @@ Create a new JSON-RPC channel.
 
 The [`Protomux`](https://github.com/mafintosh/protomux) instance providing the protocol multiplexing layer.
 
-### `channel.request(method, params, opts}) -> Promise`
+### `channel.request(method, params, opts}) => Promise`
 
-Call an RPC method. The returned promise resolves or rejects depending on whether the JSON-RPC response object has a `result` or `error` property.
+Make a JSONRPC 2.0 Request. Call an RPC method and wait for a response. The returned promise resolves or rejects depending on whether the JSON-RPC response object has a `result` or `error` property.
 
 #### Arguments
 
@@ -37,6 +37,20 @@ Methods' named parameters.
 ##### `opts` `<Object>`
 
 * `signal` -  An `AbortController` signal. The `channel.request` method will throw on abort.
+
+### `channel.notify(method, params})`
+
+Make a JSONRPC 2.0 Notification. Call an RPC method fire-and-forget style.
+
+#### Arguments
+
+##### `method` `<String>`
+
+The method name to call.
+
+##### `params` `<Object>`
+
+Methods' named parameters.
 
 ### `channel.method(name, responder, [, opts]))`
 
@@ -57,10 +71,9 @@ Call `reply` to send a response back.
 If the argument supplied to `reply` is an `instanceof Error` a JSONRPC error response (`{ jsonrpc: '2.0', id: 999, error: { message, code } }`) will be generated otherwise the supplied argument forms the result response (`{ jsonrpc: '2.0', id: 999, result: msg }`).
 
 
-##### `options` `<Object>`
+##### `opts` `<Object>`
 
-* `signal` - An `AbortController` signal
-* `throwAbort` - `Boolean`, Default: `false`. Cause the iterable to throw with the abort signal reason, otherwise silently end the iterable on signal abort.
+* `signal` - An `AbortController` signal. Aborting unregisters the method.
 
 ### `channel.muxer`
 

@@ -93,14 +93,20 @@ class Channel {
     }
   }
 
+  notify (method, params) {
+    this._req.send({ method, params })
+  }
+
   method (name, responder, { signal } = {}) {
     this._handlers[name] = ({ id, params }) => {
-      const reply = (payload) => this._res.send({
-        id,
-        payload: payload instanceof Error
-          ? { error: { message: payload.message, code: payload.code } }
-          : { result: payload }
-      })
+      const reply = id
+        ? (payload) => this._res.send({
+            id,
+            payload: payload instanceof Error
+              ? { error: { message: payload.message, code: payload.code } }
+              : { result: payload }
+          })
+        : null
       responder(params, reply)
     }
     if (signal) signal.addEventListener('abort', () => { this._handlers[name] = null })
@@ -133,15 +139,17 @@ class Freelist {
   alloc (item) {
     const id = this.freed.length === 0 ? this.alloced.push(null) - 1 : this.freed.pop()
     this.alloced[id] = item
-    return id
+    return id + 1
   }
 
   free (id) {
+    id--
     this.freed.push(id)
     this.alloced[id] = null
   }
 
   from (id) {
+    id--
     return id < this.alloced.length ? this.alloced[id] : null
   }
 
