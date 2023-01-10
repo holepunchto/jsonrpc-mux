@@ -18,7 +18,9 @@ Create a new JSON-RPC channel.
 
 ### `muxer.protomux`
 
-The [`Protomux`](https://github.com/mafintosh/protomux) instance providing the protocol multiplexing layer.
+The [`Protomux`](https://github.com/mafintosh/protomux) instance providing the protocol multiplexing layer. 
+
+Read and write. Can be dynamically set to replace the Protomux muxer.
 
 ### `channel.request(method, params, opts}) => Promise`
 
