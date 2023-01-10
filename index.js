@@ -74,13 +74,22 @@ class Channel {
   method (name, responder, { signal } = {}) {
     this._handlers[name] = ({ id, params }) => {
       const reply = id
-        ? (payload) => payload instanceof Error
+        ? (payload, isError = payload instanceof Error) => isError
             ? this._err.send({ id, message: payload.message, code: payload.code })
             : this._res.send({ id, payload })
         : null
-      responder(params, reply)
+      if (responder.length === 2 || reply === null) responder(params, reply)
+      else if (responder.length < 2) this.#methodize(responder, params, reply)
     }
     if (signal) signal.addEventListener('abort', () => { this._handlers[name] = null })
+  }
+
+  async #methodize (responder, params, reply) {
+    try {
+      reply(await responder(params))
+    } catch (err) {
+      reply(err, true)
+    }
   }
 }
 

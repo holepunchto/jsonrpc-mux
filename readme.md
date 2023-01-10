@@ -67,14 +67,54 @@ Register a method and begin listening for messages. The `responder` function is 
 
 The name of the method
 
-##### `responder` `async (params, reply) => { ... }` 
+##### `responder` `async (params, reply) => { ... } |  async (params) => { ... }` 
 
 Handler function for the method.
 
-Call `reply` to send a response back.
+If the supplied `responder` signature is `(params, reply) => {}` call `reply` to send a response back.
 
-If the argument supplied to `reply` is an `instanceof Error` a JSONRPC error response (`{ jsonrpc: '2.0', id: 999, error: { message, code } }`) will be generated otherwise the supplied argument forms the result response (`{ jsonrpc: '2.0', id: 999, result: msg }`).
+If the supplied `responder` signature is `(params) => {}` or `() => {}` then returned values form the result response and any thrown value creates an error response.
 
+**`reply(valueOrError, isError)`**
+
+If the argument supplied to `reply` is an `instanceof Error` a JSONRPC error response (`{ jsonrpc: '2.0', id: 999, error: { message, code } }`) will be generated otherwise the supplied argument forms the result response (`{ jsonrpc: '2.0', id: 999, result: msg }`). This can be forced off by setting the second argument to `false`. Likewise, a non-error object can be considered an error-response by passing `true` as the second argument to reply - it must have a `message` property. 
+
+**Examples**
+
+```js
+  achannel.method('example', (params, reply) => {
+    reply({ a: 'response', echo: params })
+  })
+```
+
+```js
+  achannel.method('example', (params, reply) => {
+    return { a: 'response', echo: params }
+  })
+```
+```js
+  achannel.method('example', (params, reply) => {
+    reply(new Error('an error response'))
+  })
+```
+
+```js
+  achannel.method('example', (params, reply) => {
+    return new Error('an error response') // returning an error is also an error response
+  })
+```
+
+```js
+  achannel.method('example', (params, reply) => {
+    reply({ message: 'an error response'}, true)
+  })
+```
+
+```js
+  achannel.method('example', (params, reply) => {
+    throw new Error('an error response')
+  })
+```
 
 ##### `opts` `<Object>`
 

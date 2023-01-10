@@ -24,7 +24,7 @@ test('notify', async ({ plan, alike, is }) => {
   bchannel.notify('test', expectedParams)
 })
 
-test('request-response', async ({ alike }) => {
+test('request-response (reply)', async ({ alike }) => {
   const a = new JSONRPCMux(new Protomux(new SecretStream(true)))
   const b = new JSONRPCMux(new Protomux(new SecretStream(false)))
 
@@ -44,7 +44,27 @@ test('request-response', async ({ alike }) => {
   alike(await request, { a: 'response', echo: expectedParams })
 })
 
-test('request-error', async ({ alike, exception }) => {
+test('request-response (return)', async ({ alike }) => {
+  const a = new JSONRPCMux(new Protomux(new SecretStream(true)))
+  const b = new JSONRPCMux(new Protomux(new SecretStream(false)))
+
+  const achannel = a.channel()
+  const bchannel = b.channel()
+
+  replicate(a, b)
+
+  const expectedParams = { a: 1, b: 2 }
+  achannel.method('test', (params) => {
+    alike(params, expectedParams)
+    return { a: 'response', echo: params }
+  })
+
+  const request = bchannel.request('test', expectedParams)
+
+  alike(await request, { a: 'response', echo: expectedParams })
+})
+
+test('request-error (reply)', async ({ alike, exception }) => {
   const a = new JSONRPCMux(new Protomux(new SecretStream(true)))
   const b = new JSONRPCMux(new Protomux(new SecretStream(false)))
 
@@ -59,6 +79,70 @@ test('request-error', async ({ alike, exception }) => {
     const err = new Error('problem')
     err.code = 'E_TEST'
     reply(err)
+  })
+
+  const request = bchannel.request('test', expectedParams)
+
+  await exception(request, /\[E_TEST\] problem/)
+})
+
+test('request-error (throw)', async ({ alike, exception }) => {
+  const a = new JSONRPCMux(new Protomux(new SecretStream(true)))
+  const b = new JSONRPCMux(new Protomux(new SecretStream(false)))
+
+  const achannel = a.channel()
+  const bchannel = b.channel()
+
+  replicate(a, b)
+
+  const expectedParams = { a: 1, b: 2 }
+  achannel.method('test', (params) => {
+    alike(params, expectedParams)
+    const err = new Error('problem')
+    err.code = 'E_TEST'
+    throw err
+  })
+
+  const request = bchannel.request('test', expectedParams)
+
+  await exception(request, /\[E_TEST\] problem/)
+})
+
+test('request-error (throw non-error)', async ({ alike, exception }) => {
+  const a = new JSONRPCMux(new Protomux(new SecretStream(true)))
+  const b = new JSONRPCMux(new Protomux(new SecretStream(false)))
+
+  const achannel = a.channel()
+  const bchannel = b.channel()
+
+  replicate(a, b)
+
+  const expectedParams = { a: 1, b: 2 }
+  achannel.method('test', (params) => {
+    alike(params, expectedParams)
+    throw { message: 'problem', code: 'E_TEST' } // eslint-disable-line
+  })
+
+  const request = bchannel.request('test', expectedParams)
+
+  await exception(request, /problem/)
+})
+
+test('request-error (return)', async ({ alike, exception }) => {
+  const a = new JSONRPCMux(new Protomux(new SecretStream(true)))
+  const b = new JSONRPCMux(new Protomux(new SecretStream(false)))
+
+  const achannel = a.channel()
+  const bchannel = b.channel()
+
+  replicate(a, b)
+
+  const expectedParams = { a: 1, b: 2 }
+  achannel.method('test', (params) => {
+    alike(params, expectedParams)
+    const err = new Error('problem')
+    err.code = 'E_TEST'
+    return err
   })
 
   const request = bchannel.request('test', expectedParams)
@@ -102,7 +186,7 @@ test('abort request', async ({ alike, exception }) => {
   replicate(a, b)
 
   const expectedParams = { a: 1, b: 2 }
-  achannel.method('test', (params) => {
+  achannel.method('test', (params, reply) => {
     alike(params, expectedParams)
   })
   const ac = new AbortController()
@@ -170,7 +254,7 @@ test('abort method', async ({ alike, exception }) => {
   await exception(bchannel.request('test', expectedParams), /request timed-out/)
 })
 
-test('notify invalid method', async ({ exception }) => {
+test('notify invalid method', async ({ execution }) => {
   const a = new JSONRPCMux(new Protomux(new SecretStream(true)))
   const b = new JSONRPCMux(new Protomux(new SecretStream(false)))
 
@@ -180,9 +264,7 @@ test('notify invalid method', async ({ exception }) => {
 
   const expectedParams = { a: 1, b: 2 }
 
-  bchannel.notify('test', expectedParams)
-
-  // await exception(request, /request timed-out/)
+  await execution(() => bchannel.notify('test', expectedParams))
 })
 
 function replicate (a, b) {
