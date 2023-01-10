@@ -71,7 +71,11 @@ class Channel {
     this._req.send({ method, params })
   }
 
-  method (name, responder, { signal } = {}) {
+  method (name, responder) {
+    if (responder === null) {
+      this._handlers[name] = null
+      return
+    }
     this._handlers[name] = ({ id, params }) => {
       const reply = id
         ? (payload, isError = payload instanceof Error) => isError
@@ -81,7 +85,6 @@ class Channel {
       if (responder.length === 2 || reply === null) responder(params, reply)
       else if (responder.length < 2) this.#methodize(responder, params, reply)
     }
-    if (signal) signal.addEventListener('abort', () => { this._handlers[name] = null })
   }
 
   async #methodize (responder, params, reply) {

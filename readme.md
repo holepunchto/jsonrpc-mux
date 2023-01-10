@@ -57,9 +57,13 @@ The method name to call.
 
 Methods' named parameters.
 
-### `channel.method(name, responder, [, opts]))`
+### `channel.method(name, responder))`
 
-Register a method and begin listening for messages. The `responder` function is called with `params` and `reply` arguments.
+Register a method and begin listening for messages. 
+
+The `responder` function is called with `params` and `reply` arguments.
+
+Pass `null` as the second `responder` argument instead of a function to unregister a method.
 
 #### Arguments
 
@@ -69,7 +73,9 @@ The name of the method
 
 ##### `responder` `async (params, reply) => { ... } |  async (params) => { ... }` 
 
-Handler function for the method.
+Handler function or `null`.
+
+If the  `responder` is `null` unregister the method.
 
 If the supplied `responder` signature is `(params, reply) => {}` call `reply` to send a response back.
 
@@ -115,10 +121,6 @@ If the argument supplied to `reply` is an `instanceof Error` a JSONRPC error res
     throw new Error('an error response')
   })
 ```
-
-##### `opts` `<Object>`
-
-* `signal` - An `AbortController` signal. Aborting unregisters the method.
 
 ### `channel.muxer`
 

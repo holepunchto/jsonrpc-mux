@@ -229,7 +229,7 @@ test('request timeout option', async ({ is, exception }) => {
   is(Math.round((after - before) / 100) * 100, 200)
 })
 
-test('abort method', async ({ alike, exception }) => {
+test('delete method', async ({ alike, exception }) => {
   const a = new JSONRPCMux(new Protomux(new SecretStream(true)))
   const b = new JSONRPCMux(new Protomux(new SecretStream(false)))
 
@@ -239,17 +239,17 @@ test('abort method', async ({ alike, exception }) => {
   replicate(a, b)
 
   const expectedParams = { a: 1, b: 2 }
-  const registration = new AbortController()
+
   achannel.method('test', (params, reply) => {
     alike(params, expectedParams)
     reply({ a: 'response', echo: params })
-  }, registration)
+  })
 
   const request = bchannel.request('test', expectedParams)
 
   alike(await request, { a: 'response', echo: expectedParams })
 
-  registration.abort() // method unlisten
+  achannel.method('test', null)
 
   await exception(bchannel.request('test', expectedParams), /request timed-out/)
 })
