@@ -10,11 +10,19 @@ http://www.jsonrpc.org/specification
 
 #### Arguments
 
-* protomux - A [`Protomux`](https://github.com/holepunchto/protomux) instance.
+##### `protomux`
 
-### `muxer.channel() => channel`
+A [`Protomux`](https://github.com/holepunchto/protomux) instance.
+
+### `muxer.channel(userData = null) => channel`
 
 Create a new JSON-RPC channel.
+
+#### Arguments
+
+##### `userData`
+
+Set the resulting `channel.userData` property to the input value. Default `null`.
 
 ### `muxer.protomux`
 
