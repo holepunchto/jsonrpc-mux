@@ -8,12 +8,13 @@ module.exports = class JSONRPCMux {
     this.protomux = protomux
   }
 
-  channel (userData) { return new Channel(this, userData) }
+  channel (id, userData) { return new Channel(this, id, userData) }
 }
 
 class Channel {
-  constructor (muxer, userData = null) {
+  constructor (muxer, id, userData = null) {
     this.muxer = muxer
+    this.id = id
     this.userData = userData
     this._muxchan = muxer.protomux.createChannel({
       protocol: 'jsonrpc-2.0',
