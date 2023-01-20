@@ -18,13 +18,5 @@
     "brittle": "^3.1.1",
     "protomux": "^3.4.0",
     "standard": "^17.0.0"
-  },
-  "repository": {
-    "type": "git",
-    "url": "git+https://github.com/holepunchto/mjr.git"
-  },
-  "bugs": {
-    "url": "https://github.com/holepunchto/mjr/issues"
-  },
-  "homepage": "https://github.com/holepunchto/mjr#readme"
+  }
 }

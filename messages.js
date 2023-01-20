@@ -3,25 +3,21 @@ const cenc = require('compact-encoding')
 
 module.exports = {
   request: {
-    preencode (state, { rid, id, params, method }) {
-      cenc.uint.preencode(state, rid)
+    preencode (state, { id, params, method }) {
       cenc.uint.preencode(state, id)
       cenc.string.preencode(state, method)
       cenc.json.preencode(state, params)
     },
-    encode (state, { rid, id, params, method }) {
-      cenc.uint.encode(state, rid)
+    encode (state, { id, params, method }) {
       cenc.uint.encode(state, id)
       cenc.string.encode(state, method)
       cenc.json.encode(state, params)
     },
     decode (state) {
-      return {
-        rid: cenc.uint.decode(state),
-        id: cenc.uint.decode(state),
-        method: cenc.string.decode(state),
-        params: cenc.json.decode(state)
-      }
+      const id = cenc.uint.decode(state)
+      const method = cenc.string.decode(state)
+      const params = cenc.json.decode(state)
+      return { id, method, params }
     }
   },
   response: {
@@ -54,7 +50,8 @@ module.exports = {
       const id = cenc.uint.decode(state)
       const message = cenc.string.decode(state)
       const code = cenc.string.decode(state)
-      return { id, error: { message, code } }
+      const o = { id, error: { message, code } }
+      return o
     }
   }
 }

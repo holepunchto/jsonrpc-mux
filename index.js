@@ -8,16 +8,16 @@ module.exports = class JSONRPCMux {
     this.protomux = protomux
   }
 
-  channel (id, userData) { return new Channel(this, id, userData) }
+  channel (userData) { return new Channel(this, userData) }
 }
 
 class Channel {
-  constructor (muxer, id, userData = null) {
+  constructor (muxer, userData = null) {
     this.muxer = muxer
-    this.id = id
     this.userData = userData
     this._muxchan = muxer.protomux.createChannel({
       protocol: 'jsonrpc-2.0',
+      unique: false,
       onclose: () => this.destroy()
     })
     this._pending = new Freelist()
@@ -53,14 +53,21 @@ class Channel {
     return this._muxchan.close()
   }
 
-  async request (method, params, { timeout = 650, signal } = {}) {
+  async request (method, params = {}, { timeout = 0, signal } = {}) {
     const ac = timeout ? new AbortController() : null
     const tx = timeout ? new Tx(ac.signal, signal) : new Tx(signal)
     const id = this._pending.alloc(tx)
-    this._req.send({ id, method, params })
+    if (this._req.send({ id, method, params }) === false) {
+      const err = new Error('unable to make request - session closed')
+      try { ac.signal.reason = err } catch {} // electron compat, but throws in other versions
+      ac.abort(err)
+    }
     const tm = timeout && setTimeout(() => {
-      ac.abort(new Error('request timed-out out after ' + timeout + 'ms'))
+      const err = new Error('request timed-out out after ' + timeout + 'ms')
+      try { ac.signal.reason = err } catch {} // electron compat, but throws in other versions
+      ac.abort(err)
     }, timeout)
+
     try {
       return await tx
     } finally {
@@ -69,7 +76,7 @@ class Channel {
     }
   }
 
-  notify (method, params) {
+  notify (method, params = {}) {
     this._req.send({ method, params })
   }
 
@@ -84,6 +91,7 @@ class Channel {
             ? this._err.send({ id, message: payload.message, code: payload.code })
             : this._res.send({ id, payload })
         : null
+
       if (responder.length === 2 || reply === null) responder(params, reply)
       else if (responder.length < 2) this.#methodize(responder, params, reply)
     }
@@ -91,7 +99,8 @@ class Channel {
 
   async #methodize (responder, params, reply) {
     try {
-      reply(await responder(params))
+      const payload = await responder(params) || {}
+      reply(payload)
     } catch (err) {
       reply(err, true)
     }
@@ -107,11 +116,13 @@ class Tx extends Promise {
     this.reject = reject
     this.resolve = resolve
     if (signals.length === 0) return this
-    const abortListener = (evt) => this.reject(evt.target.reason)
+    const abortListener = (evt) => {
+      this.reject(evt.target.reason || new Error('Tx aborted. Unknown reason'))
+    }
     for (const signal of signals) {
       if (signal instanceof AbortSignal === false) continue
       if (signal.aborted) {
-        this.reject(signal.reason)
+        this.reject(signal.reason || new Error('Tx aborted. Unknown reason'))
         return this
       }
       signal.addEventListener('abort', abortListener, { once: true })
