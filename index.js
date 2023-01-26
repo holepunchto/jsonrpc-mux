@@ -8,16 +8,16 @@ module.exports = class JSONRPCMux {
     this.protomux = protomux
   }
 
-  channel (userData) { return new Channel(this, userData) }
+  channel ({ userData, id } = {}) { return new Channel(this, userData, id) }
 }
 
 class Channel {
-  constructor (muxer, userData = null) {
+  constructor (muxer, userData = null, id = null) {
     this.muxer = muxer
+    this.id = id
     this.userData = userData
     this._muxchan = muxer.protomux.createChannel({
       protocol: 'jsonrpc-2.0',
-      unique: false,
       onclose: () => this.destroy()
     })
     this._pending = new Freelist()
@@ -59,11 +59,13 @@ class Channel {
     const id = this._pending.alloc(tx)
     if (this._req.send({ id, method, params }) === false) {
       const err = new Error('unable to make request - session closed')
+      if (ac === null) throw err
       try { ac.signal.reason = err } catch {} // electron compat, but throws in other versions
       ac.abort(err)
     }
     const tm = timeout && setTimeout(() => {
-      const err = new Error('request timed-out out after ' + timeout + 'ms')
+      const err = new Error(method + ' request timed-out out after ' + timeout + 'ms')
+      Object.assign(err, params)
       try { ac.signal.reason = err } catch {} // electron compat, but throws in other versions
       ac.abort(err)
     }, timeout)
@@ -93,11 +95,11 @@ class Channel {
         : null
 
       if (responder.length === 2 || reply === null) responder(params, reply)
-      else if (responder.length < 2) this.#methodize(responder, params, reply)
+      else if (responder.length < 2) this.#methodize(responder, params, reply, name)
     }
   }
 
-  async #methodize (responder, params, reply) {
+  async #methodize (responder, params, reply, name) {
     try {
       const payload = await responder(params) || {}
       reply(payload)

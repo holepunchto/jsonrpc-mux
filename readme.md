@@ -14,15 +14,16 @@ http://www.jsonrpc.org/specification
 
 A [`Protomux`](https://github.com/holepunchto/protomux) instance.
 
-### `muxer.channel(userData = null) => channel`
+### `muxer.channel(opts) => channel`
 
 Create a new JSON-RPC channel.
 
 #### Arguments
 
-##### `userData`
+##### `opts`
 
-Optionally set the resulting `channel.userData` property to the input value. Default `null`.
+* `id` - Optionally set the resulting `channel.id` property to the input value. Default `null`.
+* `userData` - Optionally set the resulting `channel.userData` property to the input value. Default `null`.
 
 ### `muxer.protomux`
 
