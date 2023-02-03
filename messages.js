@@ -36,12 +36,12 @@ module.exports = {
     }
   },
   error: {
-    preencode (state, { id, message, code }) {
+    preencode (state, { id, message, code = 'E_UNSPECIFIED' }) {
       cenc.uint.preencode(state, id)
       cenc.string.preencode(state, message)
       cenc.string.preencode(state, code)
     },
-    encode (state, { id, message, code }) {
+    encode (state, { id, message, code = 'E_UNSPECIFIED' }) {
       cenc.uint.encode(state, id)
       cenc.string.encode(state, message)
       cenc.string.encode(state, code)

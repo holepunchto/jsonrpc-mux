@@ -128,6 +128,26 @@ test('request-error (throw non-error)', async ({ alike, exception }) => {
   await exception(request, /problem/)
 })
 
+test('request-error (throw wtihout code)', async ({ alike, exception }) => {
+  const a = new JSONRPCMux(new Protomux(new SecretStream(true)))
+  const b = new JSONRPCMux(new Protomux(new SecretStream(false)))
+
+  const achannel = a.channel()
+  const bchannel = b.channel()
+
+  replicate(a, b)
+
+  const expectedParams = { a: 1, b: 2 }
+  achannel.method('test', (params) => {
+    alike(params, expectedParams)
+    throw new Error('problem')
+  })
+
+  const request = bchannel.request('test', expectedParams)
+
+  await exception(request, /\[E_UNSPECIFIED\] problem/)
+})
+
 test('request-error (return)', async ({ alike, exception }) => {
   const a = new JSONRPCMux(new Protomux(new SecretStream(true)))
   const b = new JSONRPCMux(new Protomux(new SecretStream(false)))
@@ -207,7 +227,7 @@ test('request invalid method', async ({ exception }) => {
 
   const expectedParams = { a: 1, b: 2 }
 
-  const request = bchannel.request('test', expectedParams)
+  const request = bchannel.request('test', expectedParams, { timeout: 100 })
 
   await exception(request, /request timed-out/)
 })
@@ -251,7 +271,7 @@ test('delete method', async ({ alike, exception }) => {
 
   achannel.method('test', null)
 
-  await exception(bchannel.request('test', expectedParams), /request timed-out/)
+  await exception(bchannel.request('test', expectedParams, { timeout: 100 }), /request timed-out/)
 })
 
 test('notify invalid method', async ({ execution }) => {
