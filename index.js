@@ -18,7 +18,7 @@ class Channel {
     this.userData = userData
     this._muxchan = muxer.protomux.createChannel({
       protocol: 'jsonrpc-2.0',
-      onclose: () => this.destroy()
+      onclose: (remote) => this.close(remote)
     })
     this._pending = new Freelist()
     this._handlers = {}
@@ -45,12 +45,31 @@ class Channel {
         return tx.reject(new RemoteError(msg.error))
       }
     })
+    this._closeResolvers = []
     this._muxchan.open()
   }
 
-  destroy () {
+  get socket () {
+    return this.muxer.protomux.stream.rawStream
+  }
+
+  uponClose (signal) {
+    return new Promise((resolve, reject) => {
+      signal?.addEventListener('abort', (err) => {
+        this._closeResolvers.length = 0
+        reject(err)
+      })
+      this._closeResolvers.push(resolve)
+    })
+  }
+
+  close (remote = false) {
+    const closed = remote ? new Error('JSONRPC-MUX: channel remotely closed') : new Error('JSONRPC-MUX: message transaction halted channel closed')
+    this._muxchan.close()
+    for (const tx of this._pending.alloced) tx?.reject(closed)
     this._pending.clear()
-    return this._muxchan.close()
+    for (const resolve of this._closeResolvers) resolve()
+    this._closeResolvers.length = 0
   }
 
   async request (method, params = {}, { timeout = 0, signal } = {}) {

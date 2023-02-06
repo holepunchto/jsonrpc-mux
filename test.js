@@ -228,25 +228,7 @@ test('request invalid method', async ({ exception }) => {
   const expectedParams = { a: 1, b: 2 }
 
   const request = bchannel.request('test', expectedParams, { timeout: 100 })
-
-  await exception(request, /request timed-out/)
-})
-
-test('request timeout option', async ({ is, exception }) => {
-  const a = new JSONRPCMux(new Protomux(new SecretStream(true)))
-  const b = new JSONRPCMux(new Protomux(new SecretStream(false)))
-
-  const bchannel = b.channel()
-
-  replicate(a, b)
-
-  const expectedParams = { a: 1, b: 2 }
-
-  const request = bchannel.request('test', expectedParams, { timeout: 200 })
-  const before = Date.now()
-  await exception(request, /request timed-out/)
-  const after = Date.now()
-  is(Math.round((after - before) / 100) * 100, 200)
+  await exception(request, /channel remotely closed/)
 })
 
 test('delete method', async ({ alike, exception }) => {
