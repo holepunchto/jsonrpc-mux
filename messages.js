@@ -21,11 +21,11 @@ module.exports = {
     }
   },
   response: {
-    preencode (state, { id, payload }) {
+    preencode (state, { id, payload = '' }) {
       cenc.uint.preencode(state, id)
       cenc.json.preencode(state, payload)
     },
-    encode (state, { id, payload }) {
+    encode (state, { id, payload = '' }) {
       cenc.uint.encode(state, id)
       cenc.json.encode(state, payload)
     },

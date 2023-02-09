@@ -120,7 +120,7 @@ class Channel {
 
   async #methodize (responder, params, reply, name) {
     try {
-      const payload = await responder(params) || {}
+      const payload = await responder(params)
       reply(payload)
     } catch (err) {
       reply(err, true)
