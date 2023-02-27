@@ -6,7 +6,9 @@ http://www.jsonrpc.org/specification
 
 ## API
 
-### `new JSONRPCMux(protomux) => muxer`
+### `new JSONRPCMux(protomux, id = null, userData = null) => channel`
+
+Create a new JSON-RPC multiplex channel.
 
 #### Arguments
 
@@ -14,22 +16,23 @@ http://www.jsonrpc.org/specification
 
 A [`Protomux`](https://github.com/holepunchto/protomux) instance.
 
-### `muxer.channel(opts) => channel`
+##### `id`
 
-Create a new JSON-RPC channel.
+Optionally set the resulting `channel.id` property to the input value. Default `null`.
 
-#### Arguments
+##### `userData`
 
-##### `opts`
+Optionally set the resulting `channel.userData` property to the input value. Default `null`.
 
-* `id` - Optionally set the resulting `channel.id` property to the input value. Default `null`.
-* `userData` - Optionally set the resulting `channel.userData` property to the input value. Default `null`.
-
-### `muxer.protomux`
+### `channel.protomux`
 
 The [`Protomux`](https://github.com/mafintosh/protomux) instance providing the protocol multiplexing layer. 
 
 Read and write. Can be dynamically set to replace the Protomux muxer.
+
+### `channel.socket`
+
+The underlying socket, from the `Protomux` instance.
 
 ### `channel.request(method, params, opts}) => Promise`
 
@@ -133,9 +136,6 @@ If the argument supplied to `reply` is an `instanceof Error` a JSONRPC error res
   })
 ```
 
-### `channel.muxer`
-
-The `JSONRPCMux` instance from which the channel was created.
 
 ## Test
 

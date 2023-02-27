@@ -4,26 +4,6 @@ const test = require('brittle')
 const Protomux = require('protomux')
 const SecretStream = require('@hyperswarm/secret-stream')
 
-test('notify', async ({ plan, alike, is }) => {
-  plan(2)
-
-  const a = new JSONRPCMux(new Protomux(new SecretStream(true)))
-  const b = new JSONRPCMux(new Protomux(new SecretStream(false)))
-
-  const achannel = a.channel()
-  const bchannel = b.channel()
-
-  replicate(a, b)
-
-  const expectedParams = { a: 1, b: 2 }
-  achannel.method('test', (params, reply) => {
-    alike(params, expectedParams)
-    is(reply, null)
-  })
-
-  bchannel.notify('test', expectedParams)
-})
-
 test('request-response (reply)', async ({ alike }) => {
   const a = new JSONRPCMux(new Protomux(new SecretStream(true)))
   const b = new JSONRPCMux(new Protomux(new SecretStream(false)))

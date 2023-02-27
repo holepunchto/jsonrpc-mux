@@ -1,36 +1,28 @@
 'use strict'
 const messages = require('./messages')
 
-module.exports = class JSONRPCMux {
+module.exports = class JSONRPCMuxChannel {
   codecs = messages
 
-  constructor (protomux) {
+  constructor (protomux, id = null, userData = null) {
     this.protomux = protomux
-  }
-
-  channel ({ userData, id } = {}) { return new Channel(this, userData, id) }
-}
-
-class Channel {
-  constructor (muxer, userData = null, id = null) {
-    this.muxer = muxer
     this.id = id
     this.userData = userData
-    this._muxchan = muxer.protomux.createChannel({
+    this._muxchan = protomux.createChannel({
       protocol: 'jsonrpc-2.0',
       onclose: (remote) => this.close(remote)
     })
     this._pending = new Freelist()
     this._handlers = {}
     this._req = this._muxchan.addMessage({
-      encoding: this.muxer.codecs.request,
+      encoding: this.codecs.request,
       onmessage: (msg) => {
         const handler = this._handlers[msg.method]
         if (handler) handler(msg)
       }
     })
     this._res = this._muxchan.addMessage({
-      encoding: this.muxer.codecs.response,
+      encoding: this.codecs.response,
       onmessage: (msg) => {
         const tx = this._pending.from(msg.id)
         if (tx === null) return
@@ -38,29 +30,18 @@ class Channel {
       }
     })
     this._err = this._muxchan.addMessage({
-      encoding: this.muxer.codecs.error,
+      encoding: this.codecs.error,
       onmessage: (msg) => {
         const tx = this._pending.from(msg.id)
         if (tx === null) return
         return tx.reject(new RemoteError(msg.error))
       }
     })
-    this._closeResolvers = []
     this._muxchan.open()
   }
 
   get socket () {
-    return this.muxer.protomux.stream.rawStream
-  }
-
-  uponClose (signal) {
-    return new Promise((resolve, reject) => {
-      signal?.addEventListener('abort', (err) => {
-        this._closeResolvers.length = 0
-        reject(err)
-      })
-      this._closeResolvers.push(resolve)
-    })
+    return this.protomux.stream.rawStream
   }
 
   close (remote = false) {
@@ -68,8 +49,6 @@ class Channel {
     this._muxchan.close()
     for (const tx of this._pending.alloced) tx?.reject(closed)
     this._pending.clear()
-    for (const resolve of this._closeResolvers) resolve()
-    this._closeResolvers.length = 0
   }
 
   async request (method, params = {}, { timeout = 0, signal } = {}) {
