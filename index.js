@@ -62,7 +62,7 @@ module.exports = class JSONRPCMuxChannel {
       ac.abort(err)
     }
     const tm = timeout && setTimeout(() => {
-      const err = new Error(method + ' request timed-out out after ' + timeout + 'ms')
+      const err = new Error(method + ' request timed-out after ' + timeout + 'ms')
       Object.assign(err, params)
       try { ac.signal.reason = err } catch {} // electron compat, but throws in other versions
       ac.abort(err)
