@@ -45,15 +45,17 @@ module.exports = class JSONRPCMuxChannel {
   }
 
   close (remote = false) {
-    const closed = remote ? new Error('JSONRPC-MUX: channel remotely closed') : new Error('JSONRPC-MUX: message transaction halted channel closed')
     this._muxchan.close()
-    for (const tx of this._pending.alloced) tx?.reject(closed)
+    for (const tx of this._pending.alloced) {
+      if (tx?.errorlessClose) tx.resolve()
+      else tx?.reject(remote ? new Error('JSONRPC-MUX: channel remotely closed') : new Error('JSONRPC-MUX: message transaction halted channel closed'))
+    }
     this._pending.clear()
   }
 
-  async request (method, params = {}, { timeout = 0, signal } = {}) {
+  request (method, params = {}, { timeout = 0, signal, errorlessClose = false } = {}) {
     const ac = timeout ? new AbortController() : null
-    const tx = timeout ? new Tx(ac.signal, signal) : new Tx(signal)
+    const tx = timeout ? transaction({ errorlessClose }, ac.signal, signal) : transaction({ errorlessClose }, signal)
     const id = this._pending.alloc(tx)
     if (this._req.send({ id, method, params }) === false) {
       const err = new Error('unable to make request - session closed')
@@ -68,12 +70,12 @@ module.exports = class JSONRPCMuxChannel {
       ac.abort(err)
     }, timeout)
 
-    try {
-      return await tx
-    } finally {
+    tx.finally(() => {
       clearTimeout(tm)
       this._pending.free(id)
-    }
+    })
+
+    return tx
   }
 
   notify (method, params = {}) {
@@ -87,9 +89,11 @@ module.exports = class JSONRPCMuxChannel {
     }
     this._handlers[name] = ({ id, params }) => {
       const reply = id
-        ? (payload, isError = payload instanceof Error) => isError
-            ? this._err.send({ id, message: payload.message, code: payload.code })
-            : this._res.send({ id, payload })
+        ? (payload, isError = payload instanceof Error) => {
+            return isError
+              ? this._err.send({ id, message: payload.message, code: payload.code })
+              : this._res.send({ id, payload })
+          }
         : null
 
       if (responder.length === 2 || reply === null) responder(params, reply)
@@ -107,35 +111,34 @@ module.exports = class JSONRPCMuxChannel {
   }
 }
 
-class Tx extends Promise {
-  static get [Symbol.species] () { return Promise }
-  constructor (...signals) {
-    let completers = null
-    super((resolve, reject) => { completers = [resolve, reject] })
-    const [resolve, reject] = completers
-    this.reject = reject
-    this.resolve = resolve
-    if (signals.length === 0) return this
-    const abortListener = (evt) => {
-      this.reject(evt.target.reason || new Error('Tx aborted. Unknown reason'))
+function transaction ({ errorlessClose = false }, ...signals) {
+  const completers = {}
+  const tx = new Promise((resolve, reject) => {
+    completers.resolve = resolve
+    completers.reject = reject
+  })
+  const { resolve, reject } = completers
+  tx.resolve = resolve
+  tx.reject = reject
+  tx.errorlessClose = errorlessClose
+  if (signals.length === 0) return tx
+  const abortListener = (evt) => { tx.reject(evt.target.reason || new Error('Tx aborted. Unknown reason')) }
+  for (const signal of signals) {
+    if (signal instanceof AbortSignal === false) continue
+    if (signal.aborted) {
+      tx.reject(signal.reason || new Error('Tx aborted. Unknown reason'))
+      return tx
     }
+    signal.addEventListener('abort', abortListener, { once: true })
+  }
+  tx.resolve = (...args) => {
     for (const signal of signals) {
       if (signal instanceof AbortSignal === false) continue
-      if (signal.aborted) {
-        this.reject(signal.reason || new Error('Tx aborted. Unknown reason'))
-        return this
-      }
-      signal.addEventListener('abort', abortListener, { once: true })
+      signal.removeEventListener('abort', abortListener)
     }
-
-    this.resolve = (...args) => {
-      for (const signal of signals) {
-        if (signal instanceof AbortSignal === false) continue
-        signal.removeEventListener('abort', abortListener)
-      }
-      return resolve(...args)
-    }
+    return resolve(...args)
   }
+  return tx
 }
 
 class Freelist {
