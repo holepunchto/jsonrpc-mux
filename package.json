@@ -1,5 +1,5 @@
 {
-  "name": "jsonrpc-mux",
+  "name": "@holepunchto/jsonrpc-mux",
   "version": "1.0.0",
   "main": "index.js",
   "scripts": {
