@@ -12,6 +12,8 @@ module.exports = class JSONRPCMuxChannel {
       protocol: 'jsonrpc-2.0',
       onclose: (remote) => this.close(remote)
     })
+    if (this._muxchan === null) return // resource closed
+
     this._pending = new Freelist()
     this._handlers = {}
     this._req = this._muxchan.addMessage({
