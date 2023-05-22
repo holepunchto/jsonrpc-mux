@@ -74,12 +74,10 @@ module.exports = class JSONRPCMuxChannel {
       ac.abort(err)
     }, timeout)
 
-    tx.finally(() => {
+    return tx.finally(() => {
       clearTimeout(tm)
       this._pending.free(id)
     })
-
-    return tx
   }
 
   notify (method, params = {}) {
@@ -116,32 +114,43 @@ module.exports = class JSONRPCMuxChannel {
 }
 
 function transaction ({ errorlessClose = false }, ...signals) {
+  signals = signals.filter(Boolean)
   const completers = {}
-
   const tx = new Promise((resolve, reject) => {
     completers.resolve = resolve
     completers.reject = reject
   })
   const { resolve, reject } = completers
+  tx.errorlessClose = errorlessClose
   tx.resolve = resolve
   tx.reject = reject
-  tx.errorlessClose = errorlessClose
   if (signals.length === 0) return tx
-  const abortListener = (evt) => { tx.reject(evt.target.reason || new Error('Tx aborted. Unknown reason')) }
+  const abortListener = (evt) => {
+    reject(evt.target.reason || new Error('Tx aborted. Unknown reason'))
+  }
   for (const signal of signals) {
     if (signal instanceof AbortSignal === false) continue
     if (signal.aborted) {
-      tx.reject(signal.reason || new Error('Tx aborted. Unknown reason'))
+      queueMicrotask(() => {
+        reject(signal.reason || new Error('Tx aborted. Unknown reason'))
+      })
       return tx
     }
     signal.addEventListener('abort', abortListener, { once: true })
   }
-  tx.resolve = (...args) => {
+  const release = () => {
     for (const signal of signals) {
       if (signal instanceof AbortSignal === false) continue
       signal.removeEventListener('abort', abortListener)
     }
+  }
+  tx.resolve = (...args) => {
+    release()
     return resolve(...args)
+  }
+  tx.reject = (...args) => {
+    release()
+    return reject(...args)
   }
   return tx
 }
