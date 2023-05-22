@@ -8,9 +8,11 @@ module.exports = class JSONRPCMuxChannel {
     this.protomux = protomux
     this.id = id
     this.userData = userData
+    this.opened = false
     this._muxchan = protomux.createChannel({
       protocol: 'jsonrpc-2.0',
-      onclose: (remote) => this.close(remote)
+      onclose: (remote) => this.close(remote),
+      onopen: () => { this.opened = true }
     })
     if (this._muxchan === null) return // resource closed
 
@@ -49,7 +51,7 @@ module.exports = class JSONRPCMuxChannel {
   close (remote = false) {
     this._muxchan.close()
     for (const tx of this._pending.alloced) {
-      if (tx?.errorlessClose) tx.resolve()
+      if (tx?.errorlessClose || this.opened === false) tx.resolve()
       else tx?.reject(remote ? new Error('JSONRPC-MUX: channel remotely closed') : new Error('JSONRPC-MUX: message transaction halted channel closed'))
     }
     this._pending.clear()
@@ -115,6 +117,7 @@ module.exports = class JSONRPCMuxChannel {
 
 function transaction ({ errorlessClose = false }, ...signals) {
   const completers = {}
+
   const tx = new Promise((resolve, reject) => {
     completers.resolve = resolve
     completers.reject = reject
