@@ -7,8 +7,8 @@
     "lint": "standard"
   },
   "keywords": [],
-  "author": "",
-  "license": "BSD-3-Clause",
+  "author": "Holepunch",
+  "license": "Apache-2.0",
   "dependencies": {
     "compact-encoding": "^2.11.0"
   },
@@ -21,10 +21,10 @@
   },
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/holepunchto/mjr.git"
+    "url": "git+https://github.com/holepunchto/jsonrpc-mux.git"
   },
   "bugs": {
-    "url": "https://github.com/holepunchto/mjr/issues"
+    "url": "https://github.com/holepunchto/jsonrpc-mux/issues"
   },
-  "homepage": "https://github.com/holepunchto/mjr#readme"
+  "homepage": "https://github.com/holepunchto/jsonrpc-mux#readme"
 }
