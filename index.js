@@ -199,8 +199,10 @@ class JSONRPCMuxError extends Error {
   local = true
   remote = null
   params = null
+  code = null
   constructor (error, code = error.code || 'E_UNKNOWN', message = error.message, params = (error.params || null)) {
     super(`[${code}] ${message}`)
+    this.code = code
     this.params = params
     if (code === 'E_MUX_REMOTE') {
       this.local = false
