@@ -59,7 +59,7 @@ module.exports = class JSONRPCMuxChannel {
         tx.resolve()
       } else {
         const err = remote
-          ? new JSONRPCMuxError(Object.assign(new Error('JSONRPC-MUX: channel remotely closed'), { code: 'E_REMOTE_CLOSE' }), 'E_MUX_REMOTE')
+          ? new JSONRPCMuxError(Object.assign(new Error('JSONRPC-MUX: channel remotely closed'), { code: 'E_REMOTE_CLOSED' }), 'E_MUX_REMOTE')
           : new JSONRPCMuxError({ message: 'JSONRPC-MUX: message transaction halted channel closed' }, 'E_HALTED')
         tx?.reject(err)
       }
@@ -73,7 +73,7 @@ module.exports = class JSONRPCMuxChannel {
     const tx = timeout ? transaction({ errorlessClose }, ac.signal, signal) : transaction({ errorlessClose }, signal)
     const id = this._pending.alloc(tx)
     if (this._req.send({ id, method, params }) === false) {
-      const err = new JSONRPCMuxError({ message: 'unable to make request - session closed', code: 'E_SESSION_CLOSE' })
+      const err = new JSONRPCMuxError({ message: 'unable to make request - session closed', code: 'E_SESSION_CLOSED' })
       if (ac === null) throw err
       try { ac.signal.reason = err } catch {} // electron compat, but throws in other versions
       ac.abort(err)
