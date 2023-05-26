@@ -54,7 +54,7 @@ module.exports = class JSONRPCMuxChannel {
   close (remote = false) {
     this._muxchan.close()
     for (const tx of this._pending.alloced) {
-      if (tx === null) continue
+      if (!tx) continue
       if (tx.errorlessClose || this.open === false) {
         tx.resolve()
       } else {
@@ -199,7 +199,7 @@ class JSONRPCMuxError extends Error {
   local = true
   remote = null
   params = null
-  constructor (error, code = error.code || 'E_UNKNOWN', message = error.message, params = error.params) {
+  constructor (error, code = error.code || 'E_UNKNOWN', message = error.message, params = (error.params || null)) {
     super(`[${code}] ${message}`)
     this.params = params
     if (code === 'E_MUX_REMOTE') {
