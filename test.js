@@ -4,9 +4,10 @@ const test = require('brittle')
 const Protomux = require('protomux')
 const SecretStream = require('@hyperswarm/secret-stream')
 
-test('request-response (reply)', async ({ alike }) => {
+test('request-response (reply)', async ({ teardown, alike }) => {
   const a = new Channel(new Protomux(new SecretStream(true)))
   const b = new Channel(new Protomux(new SecretStream(false)))
+  teardown(() => { a.close() })
 
   replicate(a, b)
 
@@ -21,9 +22,10 @@ test('request-response (reply)', async ({ alike }) => {
   alike(await request, { a: 'response', echo: expectedParams })
 })
 
-test('request-response (return)', async ({ alike }) => {
+test('request-response (return)', async ({ teardown, alike }) => {
   const a = new Channel(new Protomux(new SecretStream(true)))
   const b = new Channel(new Protomux(new SecretStream(false)))
+  teardown(() => { a.close() })
 
   replicate(a, b)
 
@@ -38,9 +40,10 @@ test('request-response (return)', async ({ alike }) => {
   alike(await request, { a: 'response', echo: expectedParams })
 })
 
-test('request-error (reply)', async ({ alike, exception }) => {
+test('request-error (reply)', async ({ teardown, alike, exception }) => {
   const a = new Channel(new Protomux(new SecretStream(true)))
   const b = new Channel(new Protomux(new SecretStream(false)))
+  teardown(() => { a.close() })
 
   replicate(a, b)
 
@@ -53,13 +56,14 @@ test('request-error (reply)', async ({ alike, exception }) => {
   })
 
   const request = b.request('test', expectedParams)
-
-  await exception(request, /\[E_TEST\] problem/)
+  await exception(request, /\[E_MUX_REMOTE\] problem/)
+  await exception(request, { local: false, remote: { code: 'E_TEST', message: 'problem' } })
 })
 
-test('request-error (throw)', async ({ alike, exception }) => {
+test('request-error (throw)', async ({ teardown, alike, exception }) => {
   const a = new Channel(new Protomux(new SecretStream(true)))
   const b = new Channel(new Protomux(new SecretStream(false)))
+  teardown(() => { a.close() })
 
   replicate(a, b)
 
@@ -73,12 +77,14 @@ test('request-error (throw)', async ({ alike, exception }) => {
 
   const request = b.request('test', expectedParams)
 
-  await exception(request, /\[E_TEST\] problem/)
+  await exception(request, /\[E_MUX_REMOTE\] problem/)
+  await exception(request, { local: false, remote: { code: 'E_TEST', message: 'problem' } })
 })
 
-test('request-error (throw non-error)', async ({ alike, exception }) => {
+test('request-error (throw non-error)', async ({ teardown, alike, exception }) => {
   const a = new Channel(new Protomux(new SecretStream(true)))
   const b = new Channel(new Protomux(new SecretStream(false)))
+  teardown(() => { a.close() })
 
   replicate(a, b)
 
@@ -93,9 +99,10 @@ test('request-error (throw non-error)', async ({ alike, exception }) => {
   await exception(request, /problem/)
 })
 
-test('request-error (throw wtihout code)', async ({ alike, exception }) => {
+test('request-error (throw wtihout code)', async ({ teardown, alike, exception }) => {
   const a = new Channel(new Protomux(new SecretStream(true)))
   const b = new Channel(new Protomux(new SecretStream(false)))
+  teardown(() => { a.close() })
 
   replicate(a, b)
 
@@ -107,12 +114,14 @@ test('request-error (throw wtihout code)', async ({ alike, exception }) => {
 
   const request = b.request('test', expectedParams)
 
-  await exception(request, /\[E_UNSPECIFIED\] problem/)
+  await exception(request, /\[E_MUX_REMOTE\] problem/)
+  await exception(request, { local: false, remote: { code: 'E_UNSPECIFIED', message: 'problem' } })
 })
 
-test('request-error (return)', async ({ alike, exception }) => {
+test('request-error (return)', async ({ teardown, alike, exception }) => {
   const a = new Channel(new Protomux(new SecretStream(true)))
   const b = new Channel(new Protomux(new SecretStream(false)))
+  teardown(() => { a.close() })
 
   replicate(a, b)
 
@@ -126,12 +135,14 @@ test('request-error (return)', async ({ alike, exception }) => {
 
   const request = b.request('test', expectedParams)
 
-  await exception(request, /\[E_TEST\] problem/)
+  await exception(request, /\[E_MUX_REMOTE\] problem/)
+  await exception(request, { local: false, remote: { code: 'E_TEST', message: 'problem' } })
 })
 
-test('multiple methods, multiple requests', async ({ is }) => {
+test('multiple methods, multiple requests', async ({ teardown, is }) => {
   const a = new Channel(new Protomux(new SecretStream(true)))
   const b = new Channel(new Protomux(new SecretStream(false)))
+  teardown(() => { a.close() })
 
   a.name = 'a'
   b.name = 'b'
@@ -152,9 +163,10 @@ test('multiple methods, multiple requests', async ({ is }) => {
   is(await request4, 256)
 })
 
-test('abort request', async ({ alike, exception }) => {
+test('abort request', async ({ teardown, alike, exception }) => {
   const a = new Channel(new Protomux(new SecretStream(true)))
   const b = new Channel(new Protomux(new SecretStream(false)))
+  teardown(() => { a.close() })
 
   replicate(a, b)
 
@@ -170,9 +182,10 @@ test('abort request', async ({ alike, exception }) => {
   await exception(request, /abort test/)
 })
 
-test('request invalid method', async ({ exception }) => {
+test('request invalid method', async ({ teardown, exception }) => {
   const a = new Channel(new Protomux(new SecretStream(true)))
   const b = new Channel(new Protomux(new SecretStream(false)))
+  teardown(() => { a.close() })
 
   replicate(a, b)
 
@@ -182,9 +195,10 @@ test('request invalid method', async ({ exception }) => {
   await exception(request, /test request timed-out/)
 })
 
-test('delete method', async ({ alike, exception }) => {
+test('delete method', async ({ teardown, alike, exception }) => {
   const a = new Channel(new Protomux(new SecretStream(true)))
   const b = new Channel(new Protomux(new SecretStream(false)))
+  teardown(() => { a.close() })
 
   replicate(a, b)
 
@@ -204,15 +218,70 @@ test('delete method', async ({ alike, exception }) => {
   await exception(b.request('test', expectedParams, { timeout: 100 }), /request timed-out/)
 })
 
-test('notify invalid method', async ({ execution }) => {
+test('notify invalid method', async ({ teardown, execution }) => {
   const a = new Channel(new Protomux(new SecretStream(true)))
   const b = new Channel(new Protomux(new SecretStream(false)))
+  teardown(() => { a.close() })
 
   replicate(a, b)
 
   const expectedParams = { a: 1, b: 2 }
 
   await execution(() => b.notify('test', expectedParams))
+})
+
+test('id set', async ({ teardown, is }) => {
+  const a = new Channel(new Protomux(new SecretStream(true)), 'AN_ID')
+  const b = new Channel(new Protomux(new SecretStream(false)), 'ANOTHER_ID')
+  teardown(() => { a.close() })
+
+  is(a.id, 'AN_ID')
+  is(b.id, 'ANOTHER_ID')
+})
+
+test('userData set', async ({ teardown, alike }) => {
+  const a = new Channel(new Protomux(new SecretStream(true)), null, { some: 'userdata' })
+  const b = new Channel(new Protomux(new SecretStream(false)), null, { other: 'userdata' })
+  teardown(() => { a.close() })
+
+  alike(a.userData, { some: 'userdata' })
+  alike(b.userData, { other: 'userdata' })
+})
+
+test('onclose', async ({ teardown, alike, is }) => {
+  const a = new Channel(new Protomux(new SecretStream(true)), null, null, { onclose (remote) { is(remote, false) } })
+  const b = new Channel(new Protomux(new SecretStream(false)), null, null, { onclose (remote) { is(remote, true) } })
+  teardown(() => { a.close() })
+
+  replicate(a, b)
+
+  const expectedParams = { a: 1, b: 2 }
+  a.method('test', (params, reply) => {
+    alike(params, expectedParams)
+    reply({ a: 'response', echo: params })
+  })
+
+  const request = b.request('test', expectedParams)
+
+  alike(await request, { a: 'response', echo: expectedParams })
+})
+
+test('onclose', async ({ teardown, alike, is }) => {
+  const a = new Channel(new Protomux(new SecretStream(true)), null, null, { onclose (remote) { is(remote, false) } })
+  const b = new Channel(new Protomux(new SecretStream(false)), null, null, { onclose (remote) { is(remote, true) } })
+  teardown(() => { a.close() })
+
+  replicate(a, b)
+
+  const expectedParams = { a: 1, b: 2 }
+  a.method('test', (params, reply) => {
+    alike(params, expectedParams)
+    reply({ a: 'response', echo: params })
+  })
+
+  const request = b.request('test', expectedParams)
+
+  alike(await request, { a: 'response', echo: expectedParams })
 })
 
 function replicate (a, b) { a.socket.pipe(b.socket).pipe(a.socket) }
