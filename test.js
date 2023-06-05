@@ -248,10 +248,11 @@ test('userData set', async ({ teardown, alike }) => {
   alike(b.userData, { other: 'userdata' })
 })
 
-test('onclose', async ({ teardown, alike, is }) => {
+test('onclose', async ({ plan, alike, is }) => {
+  plan(4)
+
   const a = new Channel(new Protomux(new SecretStream(true)), null, null, { onclose (remote) { is(remote, false) } })
   const b = new Channel(new Protomux(new SecretStream(false)), null, null, { onclose (remote) { is(remote, true) } })
-  teardown(() => { a.close() })
 
   replicate(a, b)
 
@@ -264,12 +265,14 @@ test('onclose', async ({ teardown, alike, is }) => {
   const request = b.request('test', expectedParams)
 
   alike(await request, { a: 'response', echo: expectedParams })
+  a.close()
 })
 
-test('onclose', async ({ teardown, alike, is }) => {
+test('onclose', async ({ plan, alike, is }) => {
+  plan(4)
+
   const a = new Channel(new Protomux(new SecretStream(true)), null, null, { onclose (remote) { is(remote, false) } })
   const b = new Channel(new Protomux(new SecretStream(false)), null, null, { onclose (remote) { is(remote, true) } })
-  teardown(() => { a.close() })
 
   replicate(a, b)
 
@@ -282,6 +285,7 @@ test('onclose', async ({ teardown, alike, is }) => {
   const request = b.request('test', expectedParams)
 
   alike(await request, { a: 'response', echo: expectedParams })
+  a.close()
 })
 
 function replicate (a, b) { a.socket.pipe(b.socket).pipe(a.socket) }
