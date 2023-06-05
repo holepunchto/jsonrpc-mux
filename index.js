@@ -1,23 +1,37 @@
 'use strict'
 const messages = require('./messages')
+const { EventEmitter } = require('events')
+
 const noop = Function.prototype
-module.exports = class JSONRPCMuxChannel {
+module.exports = class JSONRPCMuxChannel extends EventEmitter {
   codecs = messages
 
   constructor (protomux, id = null, userData = null, { onclose = noop } = {}) {
+    super()
     this.protomux = protomux
     this.id = id
     this.userData = userData
     this.open = false
+    this.opened = false
+    this.closed = false
+
     this._muxchan = protomux.createChannel({
       protocol: 'jsonrpc-2.0',
       onclose: async (remote) => {
         await this.close(remote)
         await onclose(remote, this)
+        this.closed = true
+        this.emit('close')
       },
-      onopen: () => { this.open = true }
+      onopen: () => {
+        this.open = true
+        this.opened = true
+        this.emit('open')
+      }
     })
-    if (this._muxchan === null) return // resource closed
+    if (this._muxchan === null) {
+      throw new Error('Protocol already open')
+    }
 
     this._pending = new Freelist()
     this._handlers = {}
