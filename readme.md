@@ -6,7 +6,7 @@ http://www.jsonrpc.org/specification
 
 ## API
 
-### `new JSONRPCMux(protomux, id = null, userData = null) => channel`
+### `new JSONRPCMux(protomux, id = null, userData = null, opts = {}) => channel`
 
 Create a new JSON-RPC multiplex channel.
 
@@ -23,6 +23,11 @@ Optionally set the resulting `channel.id` property to the input value. Default `
 ##### `userData`
 
 Optionally set the resulting `channel.userData` property to the input value. Default `null`.
+
+##### `opts`
+
+* opts.onclose - optional user-supplied function to be called on close
+* opts.ua - optional user agent, exposed as channel.ua.
 
 ### `channel.protomux`
 

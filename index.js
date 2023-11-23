@@ -6,10 +6,11 @@ const noop = Function.prototype
 module.exports = class JSONRPCMuxChannel extends EventEmitter {
   codecs = messages
 
-  constructor (protomux, id = null, userData = null, { onclose = noop } = {}) {
+  constructor (protomux, id = null, userData = null, { ua = '', onclose = noop } = {}) {
     super()
     this.protomux = protomux
     this.id = id
+    this.ua = ua
     this.userData = userData
     this.open = false
     this.opened = false
