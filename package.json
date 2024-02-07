@@ -9,7 +9,14 @@
   "keywords": [],
   "author": "Holepunch",
   "license": "Apache-2.0",
+  "imports": {
+    "events": {
+      "bare": "bare-events",
+      "default": "events"
+    }
+  },
   "dependencies": {
+    "bare-events": "^2.2.0",
     "compact-encoding": "^2.11.0"
   },
   "description": "> multiplex jsonrpc",
